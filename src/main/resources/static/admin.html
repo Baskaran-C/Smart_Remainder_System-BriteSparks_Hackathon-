@@ -425,18 +425,18 @@
             item.className = 'reminder-list-item';
             
             let sendTimeHtml = r.actualSentTime 
-              ? `<span style="color:var(--text-primary); font-weight:600;">Dispatched:</span> ${new Date(r.actualSentTime).toLocaleTimeString()}`
-              : `<span style="color:var(--text-muted);">Planned:</span> ${new Date(r.plannedTime).toLocaleTimeString()}`;
+              ? `<span style="color:var(--text-primary); font-weight:600;">Dispatched:</span> ${new Date(r.actualSentTime).toLocaleString()}`
+              : `<span style="color:var(--text-muted);">Planned:</span> ${new Date(r.plannedTime).toLocaleString()}`;
 
             let seenHtml = '';
             if (r.status === 'SEEN') {
               // Find seen event time
               const seenEvent = r.events.find(e => e.eventType === 'SEEN');
-              const seenTimeStr = seenEvent ? new Date(seenEvent.eventTime).toLocaleTimeString() : 'Recently';
+              const seenTimeStr = seenEvent ? new Date(seenEvent.eventTime).toLocaleString() : 'Recently';
               seenHtml = `<div style="color:var(--success); font-weight:600; margin-top: 4px;">Opened by user: Seen at ${seenTimeStr}</div>`;
             } else if (r.status === 'CONFIRMED') {
               const confEvent = r.events.find(e => e.eventType === 'CONFIRMED');
-              const confTimeStr = confEvent ? new Date(confEvent.eventTime).toLocaleTimeString() : 'Recently';
+              const confTimeStr = confEvent ? new Date(confEvent.eventTime).toLocaleString() : 'Recently';
               seenHtml = `<div style="color:var(--accent); font-weight:600; margin-top: 4px;">User Confirmed Appointment at ${confTimeStr}</div>`;
             } else if (r.status === 'SENT' || r.status === 'DELIVERED') {
               seenHtml = `<div style="color:var(--warning); font-weight:600; margin-top: 4px;">Not seen yet by user</div>`;
@@ -472,7 +472,7 @@
         list.innerHTML = '';
 
         if (timeline.length === 0) {
-          list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px 0;">No engine decisions have been made for this appointment yet. Evaluation runs every 2 minutes.</div>';
+          list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px 0;">No engine decisions have been made for this appointment yet.</div>';
           return;
         }
 
