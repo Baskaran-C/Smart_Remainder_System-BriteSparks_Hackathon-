@@ -93,18 +93,17 @@ public class AdminController {
                 "outcome", ca.getOutcome()
         )).toList();
 
-        Map<String, Object> response = Map.of(
-                "residentId", result.getResidentId(),
-                "allowed", result.isAllowed(),
-                "currentCount", result.getCurrentCount(),
-                "maximumCount", result.getMaximumCount(),
-                "remainingContacts", result.getRemainingContacts(),
-                "windowStart", result.getWindowStart().toString(),
-                "windowEnd", result.getWindowEnd().toString(),
-                "nextPermittedTime", result.getNextPermittedTime() != null
-                        ? result.getNextPermittedTime().toString() : null,
-                "recentContacts", contacts
-        );
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("residentId", result.getResidentId());
+        response.put("allowed", result.isAllowed());
+        response.put("currentCount", result.getCurrentCount());
+        response.put("maximumCount", result.getMaximumCount());
+        response.put("remainingContacts", result.getRemainingContacts());
+        response.put("windowStart", result.getWindowStart().toString());
+        response.put("windowEnd", result.getWindowEnd().toString());
+        response.put("nextPermittedTime", result.getNextPermittedTime() != null
+                ? result.getNextPermittedTime().toString() : null);
+        response.put("recentContacts", contacts);
 
         return ResponseEntity.ok(response);
     }
