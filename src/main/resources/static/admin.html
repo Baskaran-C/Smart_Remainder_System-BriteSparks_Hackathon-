@@ -214,16 +214,24 @@
           <div class="tracker-card">
             <h4>Appointment Context</h4>
             <div class="detail-row">
+              <div class="detail-label">Appointment Time</div>
+              <div class="detail-value" id="track-appt-time" style="font-weight:600; color:var(--text-primary);">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Next Reminder Evaluation</div>
+              <div class="detail-value" id="track-next-eval-time" style="font-weight:600; color:var(--accent);">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Reminders Dispatched</div>
+              <div class="detail-value" id="track-reminders-sent" style="font-weight:600; color:var(--success);">—</div>
+            </div>
+            <div class="detail-row">
               <div class="detail-label">Lead Time (Interval)</div>
               <div class="detail-value" id="track-lead-time">—</div>
             </div>
             <div class="detail-row">
               <div class="detail-label">Time Remaining</div>
               <div class="detail-value" id="track-remaining-time">—</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Reminders Dispatched</div>
-              <div class="detail-value" id="track-reminders-sent">—</div>
             </div>
           </div>
 
@@ -388,6 +396,8 @@
       const apptTime = new Date(appt.appointmentTime);
       const now = new Date();
 
+      document.getElementById('track-appt-time').textContent = apptTime.toLocaleString();
+
       const leadTimeMs = apptTime - createdTime;
       const leadHours = Math.floor(leadTimeMs / (1000 * 60 * 60));
       const leadMins = Math.floor((leadTimeMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -412,6 +422,14 @@
         const reminders = await res.json();
 
         document.getElementById('track-reminders-sent').textContent = reminders.filter(r => r.actualSentTime != null).length;
+
+        // Find next reminder evaluation time
+        const activeReminder = reminders.find(r => r.status === 'SCHEDULED' || r.status === 'WAITING');
+        if (activeReminder && activeReminder.nextEvaluationTime) {
+          document.getElementById('track-next-eval-time').textContent = new Date(activeReminder.nextEvaluationTime).toLocaleString();
+        } else {
+          document.getElementById('track-next-eval-time').textContent = 'No active reminders waiting';
+        }
 
         const remList = document.getElementById('track-reminder-list');
         remList.innerHTML = '';
@@ -472,7 +490,7 @@
         list.innerHTML = '';
 
         if (timeline.length === 0) {
-          list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px 0;">No engine decisions have been made for this appointment yet.</div>';
+          list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px 0; line-height: 1.6;"><strong>No Engine Decisions Recorded Yet</strong><br><span style="font-size: 0.8rem; color: var(--text-muted);">The smart scheduler evaluates reminder intervals dynamically based on user active windows, GPS distance tracking, and rolling 7-day regulatory limits. A decision log will appear here once the scheduler initiates the first evaluation cycle.</span></div>';
           return;
         }
 
