@@ -41,6 +41,9 @@ public class NotificationService {
     private static final DateTimeFormatter DISPLAY_FORMAT =
             DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy 'at' hh:mm a");
 
+    private static final DateTimeFormatter SUBJECT_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("dd MMM yyyy");
+
     /**
      * Send an appointment reminder email (HTML with Confirm + Seen buttons).
      *
@@ -122,7 +125,33 @@ public class NotificationService {
     private String buildSubject(Appointment appointment) {
         return String.format("Reminder: Your appointment at %s - %s",
                 appointment.getOfficeName(),
-                appointment.getAppointmentTime().toLocalDate());
+                appointment.getAppointmentTime().format(SUBJECT_DATE_FORMAT));
+    }
+
+    private String getEffectiveAddress(Appointment appointment) {
+        String addr = appointment.getOfficeAddress();
+        if (addr != null && !addr.isBlank()) {
+            return addr.trim();
+        }
+        String office = appointment.getOfficeName();
+        if (office == null) {
+            return "Government Office, Chennai";
+        }
+        office = office.toLowerCase();
+        if (office.contains("passport")) {
+            return "Passport Seva Kendra, Anna Salai, Chennai, Tamil Nadu 600002";
+        } else if (office.contains("transport") || office.contains("rto")) {
+            return "Regional Transport Office (RTO), Mandaveli, Chennai, Tamil Nadu 600028";
+        } else if (office.contains("aadhaar") || office.contains("enrollment")) {
+            return "Aadhaar Enrollment Centre, T. Nagar, Chennai, Tamil Nadu 600017";
+        } else if (office.contains("municipal") || office.contains("corporation")) {
+            return "Municipal Corporation Office, Ripon Building, Periamet, Chennai, Tamil Nadu 600003";
+        } else if (office.contains("collector")) {
+            return "District Collector Office, Chepauk, Chennai, Tamil Nadu 600005";
+        } else if (office.contains("registrar")) {
+            return "Sub-Registrar Office, Royapettah, Chennai, Tamil Nadu 600014";
+        }
+        return "Government Office, Chennai";
     }
 
     private String buildHtmlEmailBody(Reminder reminder, Appointment appointment) {
@@ -130,7 +159,7 @@ public class NotificationService {
         String formattedTime = appointment.getAppointmentTime().format(DISPLAY_FORMAT);
         String officeName    = appointment.getOfficeName();
         String service       = appointment.getService();
-        String address       = (appointment.getOfficeAddress() != null) ? appointment.getOfficeAddress() : "";
+        String address       = getEffectiveAddress(appointment);
 
         // Port 8080 — the port the app runs on
         String baseUrl     = "http://localhost:8080";
