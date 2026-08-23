@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book Appointment — Smart Reminder System</title>
+  <meta name="description" content="Book a government or service office appointment. Reminders are managed automatically.">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .booking-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 32px;
+      padding-bottom: 80px;
+    }
+    @media (max-width: 900px) { .booking-layout { grid-template-columns: 1fr; } }
+
+    .form-header {
+      margin-bottom: 32px;
+    }
+    .form-header h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+    .form-header p  { color: var(--text-secondary); font-size: 0.875rem; }
+
+    .section-sep {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 24px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-sep::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .offices-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .office-option {
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: var(--transition);
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: var(--shadow);
+    }
+    .office-option:hover { border-color: var(--border-accent); background: var(--bg-primary); }
+    .office-option.selected {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+
+    .info-panel { position: sticky; top: 90px; }
+    .info-panel .card { margin-bottom: 16px; }
+    .info-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 10px 0;
+    }
+    .step-num {
+      width: 26px; height: 26px;
+      background: var(--accent-glow);
+      border: 1px solid var(--border-accent);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    .step-text { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5; }
+    .step-text strong { color: var(--text-primary); }
+
+    .submit-section { margin-top: 32px; }
+    .success-state {
+      display: none;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .success-state h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+    .success-state p { color: var(--text-secondary); margin-bottom: 24px; }
+    .appt-id-display {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent);
+      background: var(--accent-glow);
+      border: 1px solid var(--border-accent);
+      border-radius: 12px;
+      padding: 12px 24px;
+      margin: 16px auto;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container nav-inner">
+      <div class="nav-brand">Smart Reminder System</div>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/book.html" class="active">Book</a></li>
+        <li><a href="/admin.html">Admin</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container" style="padding-top: 40px;">
+    <!-- SUCCESS STATE -->
+    <div class="success-state" id="success-state">
+      <h2>Appointment Booked Successfully</h2>
+      <p>Your appointment has been confirmed. The system will automatically manage all reminders — you don't need to do anything.</p>
+      <p style="font-size:0.85rem; color:var(--text-secondary);">Your Appointment ID:</p>
+      <div class="appt-id-display" id="new-appt-id">—</div>
+      <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:8px;">Save this ID to track your appointment status.</p>
+      <div style="display:flex; gap:12px; justify-content:center; margin-top:24px;">
+        <button class="btn btn-secondary" onclick="window.location.href='/'">Home</button>
+        <button class="btn btn-primary" id="view-appt-btn">View Appointment</button>
+      </div>
+    </div>
+
+    <!-- FORM STATE -->
+    <div id="form-state">
+      <div class="booking-layout">
+        <div>
+          <div class="form-header">
+            <h2>Book an Appointment</h2>
+            <p>Fill in your details. All reminders are handled automatically after booking.</p>
+          </div>
+
+          <form id="booking-form" novalidate>
+            <div class="section-sep">Your Details</div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label for="name">Full Name *</label>
+                <input type="text" id="name" placeholder="Arjun Kumar" required>
+              </div>
+              <div class="form-group">
+                <label for="email">Email Address *</label>
+                <input type="email" id="email" placeholder="arjun@email.com" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone Number (optional)</label>
+              <input type="tel" id="phone" placeholder="+91 98765 43210">
+            </div>
+
+            <div class="section-sep">Select Office</div>
+
+            <div class="offices-grid" id="offices-grid">
+              <div class="office-option" data-office="Passport Seva Kendra" data-lat="13.0827" data-lng="80.2707" data-address="Passport Seva Kendra, Anna Salai, Chennai" onclick="selectOffice(this)">
+                Passport Seva
+              </div>
+              <div class="office-option" data-office="Regional Transport Office" data-lat="13.0552" data-lng="80.2502" data-address="RTO, Mandaveli, Chennai" onclick="selectOffice(this)">
+                RTO
+              </div>
+              <div class="office-option" data-office="Aadhaar Enrollment Centre" data-lat="13.0878" data-lng="80.2785" data-address="Aadhaar Centre, T. Nagar, Chennai" onclick="selectOffice(this)">
+                Aadhaar Centre
+              </div>
+              <div class="office-option" data-office="Municipal Corporation Office" data-lat="13.0836" data-lng="80.2823" data-address="Corporation Office, Ripon Building, Chennai" onclick="selectOffice(this)">
+                Corporation
+              </div>
+              <div class="office-option" data-office="District Collector Office" data-lat="13.0475" data-lng="80.2566" data-address="Collector Office, Chepauk, Chennai" onclick="selectOffice(this)">
+                Collector Office
+              </div>
+              <div class="office-option" data-office="Sub-Registrar Office" data-lat="13.0614" data-lng="80.2498" data-address="Sub-Registrar, Royapettah, Chennai" onclick="selectOffice(this)">
+                Sub-Registrar
+              </div>
+            </div>
+            <input type="hidden" id="office-name" required>
+            <input type="hidden" id="office-lat">
+            <input type="hidden" id="office-lng">
+            <input type="hidden" id="office-address">
+
+            <div class="form-group">
+              <label for="service">Service Required *</label>
+              <select id="service" required>
+                <option value="" disabled selected>Select a service…</option>
+                <option>New Application</option>
+                <option>Renewal</option>
+                <option>Correction / Update</option>
+                <option>Document Collection</option>
+                <option>Enquiry / Status Check</option>
+                <option>Certificate Issuance</option>
+              </select>
+            </div>
+
+            <div class="section-sep">Appointment Slot</div>
+
+            <div class="form-group">
+              <label for="appt-time">Date &amp; Time *</label>
+              <input type="datetime-local" id="appt-time" required>
+            </div>
+
+            <div class="section-sep">Location (Optional)</div>
+
+            <div class="alert alert-info" style="margin-bottom:16px;">
+              <span>Sharing your location helps the system remind you at the right time — considering travel distance to the office.</span>
+            </div>
+
+            <button type="button" class="btn btn-secondary" id="location-btn" onclick="requestLocation()" style="margin-bottom:20px;">
+              Share My Location (Optional)
+            </button>
+            <span id="location-status" style="font-size:0.8rem; color:var(--text-secondary);"></span>
+            <input type="hidden" id="user-lat">
+            <input type="hidden" id="user-lng">
+
+            <div id="form-error" class="alert alert-error" style="display:none;"></div>
+
+            <div class="submit-section">
+              <button type="submit" class="btn btn-primary btn-lg btn-full" id="submit-btn">
+                Book Appointment
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="info-panel">
+          <div class="card card-sm">
+            <p style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:16px;">What happens next</p>
+            <div class="info-step">
+              <div class="step-num">1</div>
+              <div class="step-text"><strong>Appointment confirmed</strong><br>Your booking is saved in the system.</div>
+            </div>
+            <div class="info-step">
+              <div class="step-num">2</div>
+              <div class="step-text"><strong>Reminder plan created</strong><br>The backend automatically schedules your reminders.</div>
+            </div>
+            <div class="info-step">
+              <div class="step-num">3</div>
+              <div class="step-text"><strong>Smart evaluation</strong><br>Every reminder is evaluated — SEND, WAIT, or STOP — based on your context.</div>
+            </div>
+            <div class="info-step">
+              <div class="step-num">4</div>
+              <div class="step-text"><strong>Email delivered</strong><br>Reminder arrives at the right time with a confirm link.</div>
+            </div>
+            <div class="info-step">
+              <div class="step-num">5</div>
+              <div class="step-text"><strong>No spam</strong><br>Once you have seen and confirmed, the system stops automatically.</div>
+            </div>
+          </div>
+
+          <div class="card card-sm" style="background: rgba(220,38,38,0.02); border-color: rgba(220,38,38,0.1);">
+            <p style="font-size:0.8rem; font-weight:700; color:var(--danger); margin-bottom:10px;">Harassment Firewall</p>
+            <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.6;">You will never receive more than <strong>5 reminders</strong> per appointment. The system respects a <strong>30-minute cooldown</strong> after each reminder.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    const dtInput = document.getElementById('appt-time');
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30);
+    dtInput.min = now.toISOString().slice(0, 16);
+
+    let selectedOfficeLat = null, selectedOfficeLng = null;
+    let userLat = null, userLng = null;
+
+    function selectOffice(el) {
+      document.querySelectorAll('.office-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('office-name').value = el.dataset.office;
+      document.getElementById('office-lat').value = el.dataset.lat;
+      document.getElementById('office-lng').value = el.dataset.lng;
+      document.getElementById('office-address').value = el.dataset.address;
+    }
+
+    function requestLocation() {
+      if (!navigator.geolocation) {
+        document.getElementById('location-status').textContent = 'Geolocation not supported by this browser.';
+        return;
+      }
+      document.getElementById('location-btn').innerHTML = '<span class="spinner"></span> Getting location…';
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          document.getElementById('user-lat').value = userLat;
+          document.getElementById('user-lng').value = userLng;
+          document.getElementById('location-btn').innerHTML = 'Location shared';
+          document.getElementById('location-btn').disabled = true;
+          document.getElementById('location-status').textContent =
+            `Coordinates: ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
+        },
+        err => {
+          document.getElementById('location-btn').innerHTML = 'Share My Location (Optional)';
+          document.getElementById('location-status').textContent = 'Location access denied. You can still book without it.';
+        }
+      );
+    }
+
+    document.getElementById('booking-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const officeName = document.getElementById('office-name').value;
+      const service = document.getElementById('service').value;
+      const apptTime = document.getElementById('appt-time').value;
+
+      if (!name || !email || !officeName || !service || !apptTime) {
+        showError('Please fill in all required fields and select an office.');
+        return;
+      }
+
+      const btn = document.getElementById('submit-btn');
+      btn.innerHTML = '<span class="spinner"></span> Booking…';
+      btn.disabled = true;
+      hideError();
+
+      const payload = {
+        name, email,
+        phone: phone || null,
+        officeName,
+        service,
+        appointmentTime: apptTime + ':00',
+        officeLatitude: parseFloat(document.getElementById('office-lat').value) || null,
+        officeLongitude: parseFloat(document.getElementById('office-lng').value) || null,
+        officeAddress: document.getElementById('office-address').value || null
+      };
+
+      try {
+        const resp = await fetch('/api/appointments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) {
+          const err = await resp.text();
+          throw new Error(err || 'Booking failed. Please try again.');
+        }
+
+        const data = await resp.json();
+
+        if (userLat && data.userId) {
+          fetch('/api/user/location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: data.userId, latitude: userLat, longitude: userLng })
+          }).catch(() => {});
+        }
+
+        if (data.userId) {
+          fetch('/api/user/activity', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: data.userId, activityType: 'APP_OPENED' })
+          }).catch(() => {});
+        }
+
+        document.getElementById('form-state').style.display = 'none';
+        document.getElementById('success-state').style.display = 'block';
+        document.getElementById('new-appt-id').textContent = '#' + data.id;
+        document.getElementById('view-appt-btn').onclick = () =>
+          window.location.href = '/my-appointment.html?id=' + data.id;
+
+      } catch (err) {
+        showError(err.message);
+        btn.innerHTML = 'Book Appointment';
+        btn.disabled = false;
+      }
+    });
+
+    function showError(msg) {
+      const el = document.getElementById('form-error');
+      el.innerHTML = 'Error: ' + msg;
+      el.style.display = 'flex';
+    }
+    function hideError() {
+      document.getElementById('form-error').style.display = 'none';
+    }
+
+    function showToast(msg, type = 'info') {
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.innerHTML = `<span>${msg}</span>`;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => { t.style.animation = 'fadeOut 0.3s ease forwards'; setTimeout(() => t.remove(), 300); }, 3500);
+    }
+  </script>
+</body>
+</html>

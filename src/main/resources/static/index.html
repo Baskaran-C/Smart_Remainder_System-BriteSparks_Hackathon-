@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Appointment Reminder System</title>
+  <meta name="description" content="Intelligent appointment reminder system that actually reaches people — without harassment.">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .home-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+    .action-card {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 24px 28px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+      color: var(--text-primary);
+      box-shadow: var(--shadow);
+    }
+    .action-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+      color: var(--text-primary);
+    }
+    .action-text h3 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .action-text p  { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
+    .action-arrow   { margin-left: auto; color: var(--text-muted); font-size: 1.2rem; }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 72px;
+      padding-top: 60px;
+      border-top: 1px solid var(--border);
+    }
+    .feature-item {
+      padding: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      text-align: left;
+      box-shadow: var(--shadow);
+    }
+    .feature-item h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
+    .feature-item p  { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+
+    .lookup-modal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+    }
+    .lookup-modal.open { display: flex; }
+    .lookup-box {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px;
+      max-width: 440px;
+      width: 90%;
+      box-shadow: var(--shadow-hover);
+    }
+    .lookup-box h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    .lookup-box p  { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 24px; }
+    .lookup-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container nav-inner">
+      <div class="nav-brand">
+        Smart Reminder System
+      </div>
+      <ul class="nav-links">
+        <li><a href="/" class="active">Home</a></li>
+        <li><a href="/book.html">Book</a></li>
+        <li><a href="/admin.html">Admin</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-badge">Hackathon Problem 7</div>
+      <h1>The Reminder That<br>Actually Reaches</h1>
+      <p>Book your government or service appointment. Our intelligent backend handles all reminders — adapting to your behavior, location, and context — without turning into harassment.</p>
+
+      <div class="home-actions">
+        <a href="/book.html" class="action-card" id="book-action">
+          <div class="action-text">
+            <h3>Book Appointment</h3>
+            <p>Schedule a government or service office appointment</p>
+          </div>
+          <span class="action-arrow">›</span>
+        </a>
+
+        <div class="action-card" id="my-appt-btn" onclick="openLookup()">
+          <div class="action-text">
+            <h3>My Appointment</h3>
+            <p>View your appointment status and reminder timeline</p>
+          </div>
+          <span class="action-arrow">›</span>
+        </div>
+
+        <a href="/admin.html" class="action-card" id="admin-action">
+          <div class="action-text">
+            <h3>Admin Dashboard</h3>
+            <p>System intelligence: reminder decisions and analytics</p>
+          </div>
+          <span class="action-arrow">›</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="feature-item">
+        <h4>Smart Decision Engine</h4>
+        <p>SEND, WAIT, MOVE, RECOVER, STOP — every decision has a logical reason.</p>
+      </div>
+      <div class="feature-item">
+        <h4>Seen-Aware Reminders</h4>
+        <p>Tracks if you have seen the reminder. Won't bombard you if you have.</p>
+      </div>
+      <div class="feature-item">
+        <h4>Location-Aware</h4>
+        <p>Calculates travel time and reminds you when to leave, not just when the appointment is.</p>
+      </div>
+      <div class="feature-item">
+        <h4>Harassment Firewall</h4>
+        <p>Hard limits on reminder frequency. The system stops, not spams.</p>
+      </div>
+      <div class="feature-item">
+        <h4>Active-Time Detection</h4>
+        <p>Learns when you are active and times reminders accordingly.</p>
+      </div>
+      <div class="feature-item">
+        <h4>Explainable System</h4>
+        <p>Every decision is logged with a full reason — visible in the admin panel.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Lookup Modal -->
+  <div class="lookup-modal" id="lookup-modal">
+    <div class="lookup-box">
+      <h2>Find Your Appointment</h2>
+      <p>Enter your Appointment ID to view status and reminder timeline.</p>
+      <div class="form-group">
+        <label for="appt-id-input">Appointment ID</label>
+        <input type="number" id="appt-id-input" placeholder="e.g. 42" min="1">
+      </div>
+      <div class="lookup-actions">
+        <button class="btn btn-secondary" onclick="closeLookup()">Cancel</button>
+        <button class="btn btn-primary" onclick="lookupAppointment()">View Appointment</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script>
+    function openLookup() {
+      document.getElementById('lookup-modal').classList.add('open');
+      document.getElementById('appt-id-input').focus();
+    }
+    function closeLookup() {
+      document.getElementById('lookup-modal').classList.remove('open');
+    }
+    function lookupAppointment() {
+      const id = document.getElementById('appt-id-input').value;
+      if (!id || id < 1) { showToast('Please enter a valid Appointment ID.', 'error'); return; }
+      window.location.href = '/my-appointment.html?id=' + id;
+    }
+    document.getElementById('appt-id-input').addEventListener('keypress', e => {
+      if (e.key === 'Enter') lookupAppointment();
+    });
+
+    function showToast(msg, type = 'info') {
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.innerHTML = `<span>${msg}</span>`;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => { t.style.animation = 'fadeOut 0.3s ease forwards'; setTimeout(() => t.remove(), 300); }, 3500);
+    }
+  </script>
+</body>
+</html>

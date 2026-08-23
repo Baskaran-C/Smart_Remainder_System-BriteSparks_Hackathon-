@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Appointment — Smart Reminder System</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .appt-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      padding-top: 40px;
+      padding-bottom: 80px;
+    }
+    @media (max-width: 900px) {
+      .appt-container { grid-template-columns: 1fr; }
+    }
+    .timeline {
+      position: relative;
+      padding-left: 20px;
+      border-left: 2px solid var(--border);
+      margin-top: 20px;
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -29px;
+      top: 6px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bg-primary);
+      border: 3px solid var(--border);
+      transition: var(--transition);
+    }
+    .timeline-item.active::before {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+    .timeline-time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .timeline-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin: 2px 0 6px;
+    }
+    .timeline-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    .timeline-factor {
+      display: inline-block;
+      font-size: 0.65rem;
+      background: rgba(0,0,0,0.02);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 4px;
+      margin-top: 6px;
+      color: var(--text-secondary);
+    }
+    .reschedule-box {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container nav-inner">
+      <div class="nav-brand">Smart Reminder System</div>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/book.html">Book</a></li>
+        <li><a href="/admin.html">Admin</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div id="search-section" style="max-width: 500px; margin: 80px auto; text-align: center;">
+      <h1 style="font-size: 1.8rem; margin-bottom: 12px;">Track Your Appointment</h1>
+      <p style="color: var(--text-secondary); margin-bottom: 32px;">Enter your Appointment ID to view status, reschedule, or cancel.</p>
+      
+      <div class="card">
+        <div class="form-group" style="text-align: left;">
+          <label for="search-id">Appointment ID</label>
+          <input type="number" id="search-id" placeholder="e.g. 1" min="1">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="searchAppt()">Track Appointment</button>
+      </div>
+    </div>
+
+    <div id="details-section" style="display: none;">
+      <div class="appt-container">
+        <!-- Details Card -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <h1 id="appt-title">Appointment #—</h1>
+            <span id="appt-status-badge" class="badge badge-pending">PENDING</span>
+          </div>
+
+          <div class="card">
+            <div class="detail-row">
+              <div class="detail-label">User Name</div>
+              <div class="detail-value" id="val-name">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Email</div>
+              <div class="detail-value" id="val-email">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Phone</div>
+              <div class="detail-value" id="val-phone">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Office</div>
+              <div class="detail-value" id="val-office">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Address</div>
+              <div class="detail-value" id="val-address">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Service</div>
+              <div class="detail-value" id="val-service">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Date &amp; Time</div>
+              <div class="detail-value" id="val-datetime">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Reminder Status</div>
+              <div class="detail-value" id="val-reminder-status">—</div>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+              <button class="btn btn-secondary" onclick="toggleReschedule()">Reschedule</button>
+              <button class="btn btn-secondary" style="color: var(--danger); border-color: rgba(220,38,38,0.2);" onclick="cancelAppt()">Cancel Appointment</button>
+            </div>
+
+            <div class="reschedule-box" id="reschedule-box">
+              <div class="form-group">
+                <label for="new-time">Select New Date &amp; Time</label>
+                <input type="datetime-local" id="new-time">
+              </div>
+              <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="toggleReschedule()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitReschedule()">Confirm Reschedule</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 20px; background: var(--accent-glow);">
+            <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 8px;">Active Travel Tracking</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">
+              Keep location shared to let the decision engine update travel time dynamically.
+            </p>
+            <button class="btn btn-secondary btn-full" onclick="updateUserLocation()">Update Location</button>
+            <span id="loc-status" style="display:block; font-size: 0.75rem; text-align: center; margin-top: 8px; color: var(--text-muted);"></span>
+          </div>
+        </div>
+
+        <!-- Reminder timeline -->
+        <div>
+          <h2 class="section-title">Automated Reminder History</h2>
+          <p class="section-subtitle">Real-time decisions made by the engine for your appointment.</p>
+          
+          <div class="card">
+            <div id="timeline" class="timeline">
+              <!-- Timeline events injected here -->
+            </div>
+            <div id="timeline-empty" style="text-align: center; color: var(--text-muted); padding: 20px 0; display: none;">
+              No reminders generated yet. The scheduler will evaluate soon.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast-container"></div>
+
+  <script>
+    let apptId = null;
+    let userId = null;
+
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const id = urlParams.get('id');
+      const tracked = urlParams.get('tracked');
+      const eventType = urlParams.get('event');
+
+      if (id) {
+        apptId = id;
+        document.getElementById('search-section').style.display = 'none';
+        document.getElementById('details-section').style.display = 'block';
+        loadAppointment();
+        if (tracked) {
+          showToast(`Successfully registered ${eventType}! Thank you.`, 'success');
+        }
+      }
+    };
+
+    function searchAppt() {
+      const id = document.getElementById('search-id').value;
+      if (!id) { showToast('Please enter an Appointment ID', 'error'); return; }
+      window.location.href = `/my-appointment.html?id=${id}`;
+    }
+
+    async function loadAppointment() {
+      try {
+        const res = await fetch(`/api/appointments/${apptId}`);
+        if (!res.ok) throw new Error('Appointment not found');
+        const data = await res.json();
+        
+        userId = data.userId;
+        document.getElementById('appt-title').textContent = `Appointment #${data.id}`;
+        
+        const badge = document.getElementById('appt-status-badge');
+        badge.className = `badge badge-${data.status.toLowerCase()}`;
+        badge.textContent = data.status;
+
+        document.getElementById('val-name').textContent = data.userName;
+        document.getElementById('val-email').textContent = data.userEmail || 'N/A';
+        document.getElementById('val-phone').textContent = data.userPhone || 'N/A';
+        document.getElementById('val-office').textContent = data.officeName;
+        document.getElementById('val-address').textContent = data.officeAddress || 'N/A';
+        document.getElementById('val-service').textContent = data.service;
+        document.getElementById('val-datetime').textContent = new Date(data.appointmentTime).toLocaleString();
+        document.getElementById('val-reminder-status').textContent = data.reminderStatus || 'SCHEDULED';
+
+        loadTimeline();
+      } catch (err) {
+        showToast(err.message, 'error');
+        setTimeout(() => { window.location.href = '/my-appointment.html'; }, 2000);
+      }
+    }
+
+    async function loadTimeline() {
+      try {
+        const res = await fetch(`/api/appointments/${apptId}/reminders`);
+        if (!res.ok) throw new Error('Failed to load timeline');
+        const reminders = await res.json();
+        
+        const timeline = document.getElementById('timeline');
+        timeline.innerHTML = '';
+
+        if (reminders.length === 0) {
+          document.getElementById('timeline-empty').style.display = 'block';
+          return;
+        }
+        document.getElementById('timeline-empty').style.display = 'none';
+
+        reminders.forEach((r, rIdx) => {
+          const item = document.createElement('div');
+          item.className = 'timeline-item active';
+          
+          let title = `Reminder Evaluation Chain #${r.id}`;
+          let desc = `Status: ${r.status}. Mode: ${r.attemptNumber} attempt(s).`;
+          let time = r.plannedTime ? new Date(r.plannedTime).toLocaleString() : new Date(r.createdAt).toLocaleString();
+          
+          if (r.status === 'SENT') {
+            desc += ` Dispatched at ${new Date(r.actualSentTime).toLocaleString()}.`;
+          } else if (r.status === 'FAILED') {
+            desc += ` Reason: ${r.failureReason || 'SMTP or Connection Failure'}.`;
+          }
+
+          item.innerHTML = `
+            <div class="timeline-time">${time}</div>
+            <div class="timeline-title">${title}</div>
+            <div class="timeline-desc">${desc}</div>
+          `;
+
+          r.events.forEach(e => {
+            const evItem = document.createElement('div');
+            evItem.className = 'timeline-item';
+            evItem.innerHTML = `
+              <div class="timeline-time" style="color:var(--accent);">${new Date(e.eventTime).toLocaleString()}</div>
+              <div class="timeline-title" style="font-size:0.85rem;">Lifecycle Event: ${e.eventType}</div>
+              <div class="timeline-desc" style="font-size:0.75rem;">${e.detail || ''}</div>
+            `;
+            timeline.appendChild(evItem);
+          });
+
+          r.decisions.forEach(d => {
+            const decItem = document.createElement('div');
+            decItem.className = 'timeline-item';
+            
+            let factorsHtml = '';
+            if (d.factorsChecked) {
+              d.factorsChecked.split('|').forEach(f => {
+                factorsHtml += `<span class="timeline-factor">${f}</span>`;
+              });
+            }
+
+            decItem.innerHTML = `
+              <div class="timeline-time">${new Date(d.createdAt).toLocaleString()}</div>
+              <div class="timeline-title">Decision: <span class="decision-${d.decision}">${d.decision}</span></div>
+              <div class="timeline-desc">${d.reason}</div>
+              <div style="margin-top:4px;">${factorsHtml}</div>
+            `;
+            timeline.appendChild(decItem);
+          });
+
+          timeline.appendChild(item);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function toggleReschedule() {
+      const box = document.getElementById('reschedule-box');
+      box.style.display = box.style.display === 'block' ? 'none' : 'block';
+    }
+
+    async function submitReschedule() {
+      const time = document.getElementById('new-time').value;
+      if (!time) { showToast('Please select a valid date/time', 'error'); return; }
+
+      try {
+        const res = await fetch(`/api/appointments/${apptId}/reschedule`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointmentTime: time + ':00' })
+        });
+        if (!res.ok) throw new Error('Reschedule failed');
+        showToast('Appointment successfully rescheduled! Reminders recalculated.', 'success');
+        toggleReschedule();
+        loadAppointment();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function cancelAppt() {
+      if (!confirm('Are you sure you want to cancel this appointment? This cannot be undone.')) return;
+      try {
+        const res = await fetch(`/api/appointments/${apptId}/cancel`, {
+          method: 'PATCH'
+        });
+        if (!res.ok) throw new Error('Cancellation failed');
+        showToast('Appointment cancelled successfully.', 'success');
+        loadAppointment();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function updateUserLocation() {
+      if (!navigator.geolocation) {
+        showToast('Geolocation is not supported by your browser', 'error');
+        return;
+      }
+      document.getElementById('loc-status').textContent = 'Acquiring coordinates...';
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const res = await fetch('/api/user/location', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: userId,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              })
+            });
+            if (!res.ok) throw new Error('Failed to update location');
+            document.getElementById('loc-status').textContent = 'Location updated successfully!';
+            showToast('Location updated! Decision engine will recalculate travel time.', 'success');
+            loadAppointment();
+          } catch (err) {
+            document.getElementById('loc-status').textContent = 'Error updating location';
+            showToast(err.message, 'error');
+          }
+        },
+        () => {
+          document.getElementById('loc-status').textContent = 'Access to location denied.';
+        }
+      );
+    }
+
+    function showToast(msg, type = 'info') {
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.innerHTML = `<span>${msg}</span>`;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => { t.style.animation = 'fadeOut 0.3s ease forwards'; setTimeout(() => t.remove(), 300); }, 3500);
+    }
+  </script>
+</body>
+</html>
