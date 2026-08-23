@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — Smart Appointment Reminder System</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+  <style>
+    .metric-group-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+      margin-top: 24px;
+    }
+    .tracking-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 20px;
+    }
+    @media (max-width: 900px) {
+      .tracking-grid { grid-template-columns: 1fr; }
+    }
+    .panel-header {
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .tracker-card {
+      background: rgba(0, 0, 0, 0.005);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .tracker-card h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--accent);
+    }
+    .reminder-list-item {
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+    }
+    .reminder-list-item:last-child {
+      margin-bottom: 0;
+    }
+    /* CR-2026/11 Contact Limit styles */
+    .contact-limit-bar-wrap {
+      background: #e9ecef;
+      border-radius: 999px;
+      height: 12px;
+      overflow: hidden;
+      margin: 8px 0 4px;
+    }
+    .contact-limit-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+    .contact-limit-bar-fill.limit-ok   { background: #2ecc71; }
+    .contact-limit-bar-fill.limit-warn { background: #f39c12; }
+    .contact-limit-bar-fill.limit-full { background: #e74c3c; }
+    .contact-attempt-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+      font-size: 0.8rem;
+      background: var(--bg-card);
+    }
+    .badge-delivered { background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; }
+    .badge-failed    { background: #f8d7da; color: #721c24; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; }
+    .badge-pending   { background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; }
+    .decision-withheld { color: #e67e22; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container nav-inner">
+      <div class="nav-brand">Smart Reminder System</div>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/book.html">Book</a></li>
+        <li><a href="/admin.html" class="active">Admin</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="container" style="max-width: 1200px; padding-top: 40px; padding-bottom: 80px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div>
+        <h1 style="font-size: 1.8rem; font-weight: 800;">System Intelligence Dashboard</h1>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">Monitor automated reminder lifecycles, decision logs, and effectiveness metrics.</p>
+      </div>
+      <button class="btn btn-secondary" onclick="refreshDashboard()">Refresh Data</button>
+    </div>
+
+    <!-- Live Update Ribbon -->
+    <div id="live-update-alert" class="alert alert-info" style="display: none; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="spinner" style="width: 14px; height: 14px; border-width: 1px;"></span>
+        <span id="live-update-text">WebSocket connected. Awaiting decisions...</span>
+      </div>
+      <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="hideLiveAlert()">Dismiss</button>
+    </div>
+
+    <!-- Analytics Section -->
+    <div class="metric-group-title">Appointment Lifecycle &amp; Effectiveness Rates</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Total Bookings</span>
+        <div class="stat-value" id="stat-total-appts">0</div>
+        <span class="stat-desc" id="stat-no-show-rate">No-Show Rate: 0.0%</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Reminders Dispatched</span>
+        <div class="stat-value" id="stat-total-reminders">0</div>
+        <span class="stat-desc" id="stat-delivery-rate">Delivery Rate: 0.0%</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Seen Reminders</span>
+        <div class="stat-value" id="stat-seen-reminders">0</div>
+        <span class="stat-desc" id="stat-seen-rate">Seen / Delivered: 0.0%</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Confirmed Bookings</span>
+        <div class="stat-value" id="stat-confirmed-appts">0</div>
+        <span class="stat-desc" id="stat-confirm-rate">Confirm / Seen: 0.0%</span>
+      </div>
+    </div>
+
+    <div class="metric-group-title">Engine Decision Stats</div>
+    <div class="stats-grid">
+      <div class="stat-card" style="border-left: 3px solid var(--success);">
+        <span class="stat-label">SEND Decisions</span>
+        <div class="stat-value" id="stat-dec-send">0</div>
+        <span class="stat-desc">Dispatched immediately</span>
+      </div>
+      <div class="stat-card" style="border-left: 3px solid var(--warning);">
+        <span class="stat-label">WAIT Decisions</span>
+        <div class="stat-value" id="stat-dec-wait">0</div>
+        <span class="stat-desc">Deferred for cooldown</span>
+      </div>
+      <div class="stat-card" style="border-left: 3px solid var(--info);">
+        <span class="stat-label">MOVE Decisions</span>
+        <div class="stat-value" id="stat-dec-move">0</div>
+        <span class="stat-desc">Shifted to active window</span>
+      </div>
+      <div class="stat-card" style="border-left: 3px solid var(--danger);">
+        <span class="stat-label">STOP Decisions</span>
+        <div class="stat-value" id="stat-dec-stop">0</div>
+        <span class="stat-desc">Harassment firewall triggers</span>
+      </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div style="margin-top: 40px;">
+      <h2 class="section-title">All Booked Appointments</h2>
+      <p class="section-subtitle">Select any row to view its explainable decision logs and reminder timeline.</p>
+      
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>User</th>
+              <th>Office</th>
+              <th>Service</th>
+              <th>Appointment Time</th>
+              <th>Status</th>
+              <th>Reminder State</th>
+              <th>Last Decision</th>
+            </tr>
+          </thead>
+          <tbody id="appointments-tbody">
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-secondary);">Loading appointments...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Detailed Decisions Panel -->
+    <div class="decision-panel" id="decision-panel">
+      <div class="panel-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h2 id="dec-panel-title" class="section-title" style="margin-bottom: 2px;">User Tracking Details</h2>
+          <p id="dec-panel-subtitle" class="section-subtitle" style="margin-bottom:0;">Automated reminder lifecycle events, send timelines, and engine decisions.</p>
+        </div>
+        <button class="btn btn-secondary" onclick="closeDecisionPanel()">Close Panel</button>
+      </div>
+
+      <div class="tracking-grid">
+        <!-- Column 1: Appointment & Reminder Dispatch Summary -->
+        <div>
+          <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">Reminder Dispatch Tracking</h3>
+          
+          <div class="tracker-card">
+            <h4>Appointment Context</h4>
+            <div class="detail-row">
+              <div class="detail-label">Lead Time (Interval)</div>
+              <div class="detail-value" id="track-lead-time">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Time Remaining</div>
+              <div class="detail-value" id="track-remaining-time">—</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Reminders Dispatched</div>
+              <div class="detail-value" id="track-reminders-sent">—</div>
+            </div>
+          </div>
+
+          <div class="tracker-card">
+            <h4>Reminder Logs</h4>
+            <div id="track-reminder-list">
+              <!-- Reminders and their send time, seen state, and attempts go here -->
+            </div>
+            <div id="track-reminders-empty" style="font-size: 0.8rem; text-align: center; color: var(--text-muted); padding: 12px 0; display: none;">
+              No reminders have been created yet.
+            </div>
+          </div>
+
+          <!-- CR-2026/11 Contact Limit Card -->
+          <div class="tracker-card" id="contact-limit-card">
+            <h4>Regulatory Contact Limit <span style="font-weight:400; color:var(--text-secondary); font-size:0.75rem;">(CR-2026/11)</span></h4>
+            <div id="contact-limit-content">
+              <div style="color:var(--text-muted); font-size:0.8rem;">Loading...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 2: Explainable Decision Engine Timeline -->
+        <div>
+          <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">Explainable Decisions Timeline</h3>
+          <div class="decision-log-list" id="decision-log-list">
+            <!-- Logs injected here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast-container"></div>
+
+  <script>
+    let stompClient = null;
+
+    window.onload = function() {
+      refreshDashboard();
+      connectWebSockets();
+    };
+
+    function connectWebSockets() {
+      const socket = new SockJS('/ws');
+      stompClient = Stomp.over(socket);
+      stompClient.debug = null;
+      stompClient.connect({}, function(frame) {
+        document.getElementById('live-update-alert').style.display = 'flex';
+        stompClient.subscribe('/topic/admin', function(message) {
+          const body = JSON.parse(message.body);
+          showLiveAlert(`Engine Decision Broadcast: ${body.decision} on Appointment #${body.appointmentId}`);
+          refreshDashboard();
+        });
+      }, function(error) {
+        console.warn("WebSocket could not connect. Live updates disabled.", error);
+      });
+    }
+
+    function showLiveAlert(msg) {
+      document.getElementById('live-update-text').textContent = msg;
+      document.getElementById('live-update-alert').style.display = 'flex';
+      showToast(msg, 'info');
+    }
+
+    function hideLiveAlert() {
+      document.getElementById('live-update-alert').style.display = 'none';
+    }
+
+    async function refreshDashboard() {
+      await loadStats();
+      await loadAppointments();
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/admin/dashboard');
+        if (!res.ok) throw new Error('Failed to load stats');
+        const data = await res.json();
+
+        document.getElementById('stat-total-appts').textContent = data.totalAppointments;
+        document.getElementById('stat-no-show-rate').textContent = `No-Show Rate: ${data.noShowRate.toFixed(1)}%`;
+        
+        document.getElementById('stat-total-reminders').textContent = data.sentReminders + data.deliveredReminders + data.seenReminders + data.confirmedReminders;
+        document.getElementById('stat-delivery-rate').textContent = `Delivery Rate: ${data.deliveryRate.toFixed(1)}%`;
+
+        document.getElementById('stat-seen-reminders').textContent = data.seenReminders + data.confirmedReminders;
+        document.getElementById('stat-seen-rate').textContent = `Seen / Delivered: ${data.seenRate.toFixed(1)}%`;
+
+        document.getElementById('stat-confirmed-appts').textContent = data.confirmedAppointments;
+        document.getElementById('stat-confirm-rate').textContent = `Confirm / Seen: ${data.confirmRate.toFixed(1)}%`;
+
+        document.getElementById('stat-dec-send').textContent = data.sendDecisions;
+        document.getElementById('stat-dec-wait').textContent = data.waitDecisions;
+        document.getElementById('stat-dec-move').textContent = data.moveDecisions;
+        document.getElementById('stat-dec-stop').textContent = data.stopDecisions + data.recoverDecisions;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadAppointments() {
+      try {
+        const res = await fetch('/api/admin/appointments');
+        if (!res.ok) throw new Error('Failed to load appointments');
+        const list = await res.json();
+
+        const tbody = document.getElementById('appointments-tbody');
+        tbody.innerHTML = '';
+
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-secondary);">No appointments booked in the system.</td></tr>';
+          return;
+        }
+
+        list.forEach(a => {
+          const row = document.createElement('tr');
+          row.onclick = () => showTrackingDetails(a);
+          
+          let lastDecisionHtml = '<span style="color:var(--text-secondary);">None</span>';
+          if (a.lastDecision) {
+            const parts = a.lastDecision.split(':');
+            const dec = parts[0].trim();
+            const reason = parts.slice(1).join(':').trim();
+            lastDecisionHtml = `<strong><span class="decision-${dec}">${dec}</span></strong>: <span style="font-size:0.8rem; color:var(--text-secondary);">${reason}</span>`;
+          }
+
+          row.innerHTML = `
+            <td>#${a.id}</td>
+            <td><strong>${a.userName}</strong><br><span style="font-size:0.75rem; color:var(--text-secondary);">${a.userEmail || ''}</span></td>
+            <td>${a.officeName}</td>
+            <td>${a.service}</td>
+            <td>${new Date(a.appointmentTime).toLocaleString()}</td>
+            <td><span class="badge badge-${a.status.toLowerCase()}">${a.status}</span></td>
+            <td><span class="badge badge-${(a.reminderStatus || 'SCHEDULED').toLowerCase()}">${a.reminderStatus || 'SCHEDULED'}</span></td>
+            <td>${lastDecisionHtml}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function showTrackingDetails(appt) {
+      const apptId = appt.id;
+      const userName = appt.userName;
+      const userId = appt.userId;
+
+      // Update Panel header
+      document.getElementById('dec-panel-title').textContent = `Tracking Details for ${userName} (Appt #${apptId})`;
+      
+      const panel = document.getElementById('decision-panel');
+      panel.classList.add('active');
+      panel.scrollIntoView({ behavior: 'smooth' });
+
+      // Load contact limit for this resident
+      if (userId) loadContactLimit(userId);
+
+      // 1. Calculate time gap and remaining time
+      const createdTime = new Date(appt.createdAt);
+      const apptTime = new Date(appt.appointmentTime);
+      const now = new Date();
+
+      const leadTimeMs = apptTime - createdTime;
+      const leadHours = Math.floor(leadTimeMs / (1000 * 60 * 60));
+      const leadMins = Math.floor((leadTimeMs % (1000 * 60 * 60)) / (1000 * 60));
+      document.getElementById('track-lead-time').textContent = `${leadHours}h ${leadMins}m gap`;
+
+      const remainingMs = apptTime - now;
+      if (remainingMs > 0) {
+        const remHours = Math.floor(remainingMs / (1000 * 60 * 60));
+        const remMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+        document.getElementById('track-remaining-time').textContent = `Starts in ${remHours}h ${remMins}m`;
+      } else {
+        const passedMs = Math.abs(remainingMs);
+        const passHours = Math.floor(passedMs / (1000 * 60 * 60));
+        const passMins = Math.floor((passedMs % (1000 * 60 * 60)) / (1000 * 60));
+        document.getElementById('track-remaining-time').textContent = `Passed ${passHours}h ${passMins}m ago`;
+      }
+
+      // Fetch reminders list
+      try {
+        const res = await fetch(`/api/admin/appointments/${apptId}/reminders`);
+        if (!res.ok) throw new Error('Failed to load reminders details');
+        const reminders = await res.json();
+
+        document.getElementById('track-reminders-sent').textContent = reminders.filter(r => r.actualSentTime != null).length;
+
+        const remList = document.getElementById('track-reminder-list');
+        remList.innerHTML = '';
+
+        if (reminders.length === 0) {
+          document.getElementById('track-reminders-empty').style.display = 'block';
+        } else {
+          document.getElementById('track-reminders-empty').style.display = 'none';
+          reminders.forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'reminder-list-item';
+            
+            let sendTimeHtml = r.actualSentTime 
+              ? `<span style="color:var(--text-primary); font-weight:600;">Dispatched:</span> ${new Date(r.actualSentTime).toLocaleTimeString()}`
+              : `<span style="color:var(--text-muted);">Planned:</span> ${new Date(r.plannedTime).toLocaleTimeString()}`;
+
+            let seenHtml = '';
+            if (r.status === 'SEEN') {
+              // Find seen event time
+              const seenEvent = r.events.find(e => e.eventType === 'SEEN');
+              const seenTimeStr = seenEvent ? new Date(seenEvent.eventTime).toLocaleTimeString() : 'Recently';
+              seenHtml = `<div style="color:var(--success); font-weight:600; margin-top: 4px;">Opened by user: Seen at ${seenTimeStr}</div>`;
+            } else if (r.status === 'CONFIRMED') {
+              const confEvent = r.events.find(e => e.eventType === 'CONFIRMED');
+              const confTimeStr = confEvent ? new Date(confEvent.eventTime).toLocaleTimeString() : 'Recently';
+              seenHtml = `<div style="color:var(--accent); font-weight:600; margin-top: 4px;">User Confirmed Appointment at ${confTimeStr}</div>`;
+            } else if (r.status === 'SENT' || r.status === 'DELIVERED') {
+              seenHtml = `<div style="color:var(--warning); font-weight:600; margin-top: 4px;">Not seen yet by user</div>`;
+            } else if (r.status === 'FAILED') {
+              seenHtml = `<div style="color:var(--danger); font-weight:600; margin-top: 4px;">Delivery failed: ${r.failureReason || 'SMTP error'}</div>`;
+            } else if (r.status === 'STOPPED') {
+              seenHtml = `<div style="color:var(--text-secondary); font-weight:500; margin-top: 4px;">Evaluation stopped by Firewall</div>`;
+            }
+
+            item.innerHTML = `
+              <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+                <strong>Reminder chain #${r.id}</strong>
+                <span class="badge badge-${r.status.toLowerCase()}">${r.status}</span>
+              </div>
+              <div style="color:var(--text-secondary);">${sendTimeHtml}</div>
+              <div style="color:var(--text-secondary); margin-top:2px;">Attempts: ${r.attemptNumber}</div>
+              ${seenHtml}
+            `;
+            remList.appendChild(item);
+          });
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+
+      // Fetch decisions timeline
+      try {
+        const res = await fetch(`/api/admin/appointments/${apptId}/decisions`);
+        if (!res.ok) throw new Error('Failed to fetch decisions timeline');
+        const timeline = await res.json();
+
+        const list = document.getElementById('decision-log-list');
+        list.innerHTML = '';
+
+        if (timeline.length === 0) {
+          list.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 20px 0;">No engine decisions have been made for this appointment yet. Evaluation runs every 2 minutes.</div>';
+          return;
+        }
+
+        timeline.forEach(d => {
+          const item = document.createElement('div');
+          item.className = 'decision-log-item';
+          
+          let factorsHtml = '';
+          if (d.factorsChecked) {
+            d.factorsChecked.split('|').forEach(f => {
+              factorsHtml += `<span class="decision-log-factor">${f}</span>`;
+            });
+          }
+
+          const isWithheld = d.decision === 'WITHHELD';
+          const decisionClass = isWithheld ? 'decision-withheld' : `decision-${d.decision}`;
+          const withheldBadge = isWithheld
+            ? `<span style="background:#fdebd0; color:#e67e22; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:700; margin-left:8px;">REGULATORY BLOCK</span>`
+            : '';
+
+          item.innerHTML = `
+            <div class="decision-log-header">
+              <strong>Decision: <span class="${decisionClass}">${d.decision}</span>${withheldBadge}</strong>
+              <span style="font-size:0.75rem; color:var(--text-secondary);">${new Date(d.createdAt).toLocaleString()}</span>
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-primary); line-height:1.5; white-space: pre-line;">${d.reason}</div>
+            <div class="decision-log-factors">
+              <span style="font-size:0.7rem; color:var(--text-secondary); display:inline-block; align-self:center; margin-right:4px;">Pipeline Stages Checked:</span>
+              ${factorsHtml}
+            </div>
+          `;
+          list.appendChild(item);
+        });
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function loadContactLimit(userId) {
+      const box = document.getElementById('contact-limit-content');
+      try {
+        const res = await fetch(`/api/admin/residents/${userId}/contact-limit`);
+        if (!res.ok) throw new Error('Failed to load contact limit');
+        const d = await res.json();
+
+        const pct = Math.min(100, (d.currentCount / d.maximumCount) * 100);
+        const barClass = d.currentCount === 0 ? 'limit-ok' :
+                         d.currentCount < d.maximumCount ? 'limit-warn' : 'limit-full';
+        const statusColor = d.allowed ? 'var(--success)' : '#e74c3c';
+        const statusLabel = d.allowed
+          ? `${d.remainingContacts} contact${d.remainingContacts !== 1 ? 's' : ''} remaining`
+          : 'LIMIT REACHED — next contact blocked';
+
+        let attemptsHtml = '';
+        if (d.recentContacts && d.recentContacts.length > 0) {
+          d.recentContacts.forEach(ca => {
+            const dt = new Date(ca.attemptedAt).toLocaleString();
+            const outcomeClass = ca.outcome === 'DELIVERED' ? 'badge-delivered'
+                               : ca.outcome === 'FAILED' ? 'badge-failed' : 'badge-pending';
+            attemptsHtml += `
+              <div class="contact-attempt-item">
+                <div>
+                  <div style="font-weight:600;">${dt}</div>
+                  <div style="color:var(--text-secondary);">${ca.channel} &bull; Appt #${ca.appointmentId}</div>
+                </div>
+                <span class="${outcomeClass}">${ca.outcome}</span>
+              </div>`;
+          });
+        } else {
+          attemptsHtml = '<div style="color:var(--text-muted); font-size:0.8rem;">No contacts in rolling 7-day window.</div>';
+        }
+
+        let nextHtml = '';
+        if (!d.allowed && d.nextPermittedTime) {
+          nextHtml = `<div style="margin-top:10px; padding:8px 12px; background:#fff3cd; border-radius:6px; font-size:0.8rem;">
+            <strong>Next contact permitted:</strong><br>${new Date(d.nextPermittedTime).toLocaleString()}
+          </div>`;
+        }
+
+        box.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-size:1.2rem; font-weight:800; color:${statusColor};">${d.currentCount} / ${d.maximumCount}</span>
+            <span style="font-size:0.75rem; color:${statusColor}; font-weight:600;">${statusLabel}</span>
+          </div>
+          <div class="contact-limit-bar-wrap">
+            <div class="contact-limit-bar-fill ${barClass}" style="width:${pct}%"></div>
+          </div>
+          <div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:10px;">
+            Rolling window: ${new Date(d.windowStart).toLocaleDateString()} &rarr; ${new Date(d.windowEnd).toLocaleDateString()}
+          </div>
+          ${attemptsHtml}
+          ${nextHtml}
+        `;
+      } catch (err) {
+        box.innerHTML = '<div style="color:var(--text-muted); font-size:0.8rem;">Contact limit data unavailable.</div>';
+      }
+    }
+
+    function closeDecisionPanel() {
+      document.getElementById('decision-panel').classList.remove('active');
+    }
+
+    function showToast(msg, type = 'info') {
+      const t = document.createElement('div');
+      t.className = `toast toast-${type}`;
+      t.innerHTML = `<span>${msg}</span>`;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => { t.style.animation = 'fadeOut 0.3s ease forwards'; setTimeout(() => t.remove(), 300); }, 3500);
+    }
+  </script>
+</body>
+</html>
