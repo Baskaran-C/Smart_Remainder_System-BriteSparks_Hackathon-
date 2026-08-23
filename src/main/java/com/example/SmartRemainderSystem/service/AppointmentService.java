@@ -150,24 +150,49 @@ public class AppointmentService {
     }
 
     private User resolveUser(AppointmentRequest request) {
-        if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            Optional<User> existing = userRepository.findByEmail(request.getEmail());
+        String name = normalize(request.getName());
+        String email = normalizeEmail(request.getEmail());
+        String phone = normalize(request.getPhone());
+
+        // Treat email as the primary identity key.
+        // If a booking has a different email, create a separate user even when phone matches.
+        if (email != null) {
+            Optional<User> existing = userRepository.findByEmail(email);
             if (existing.isPresent()) {
-                User u = existing.get();
-                u.setName(request.getName());
-                return userRepository.save(u);
+                User user = existing.get();
+                user.setName(name);
+                if (phone != null) {
+                    user.setPhone(phone);
+                }
+                return userRepository.save(user);
             }
-        }
-        if (request.getPhone() != null && !request.getPhone().isBlank()) {
-            Optional<User> existing = userRepository.findByPhone(request.getPhone());
-            if (existing.isPresent()) return existing.get();
+        } else if (phone != null) {
+            Optional<User> existing = userRepository.findByPhone(phone);
+            if (existing.isPresent()) {
+                User user = existing.get();
+                user.setName(name);
+                return userRepository.save(user);
+            }
         }
 
         User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
+        user.setName(name);
+        user.setEmail(email);
+        user.setPhone(phone);
         return userRepository.save(user);
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeEmail(String value) {
+        String normalized = normalize(value);
+        return normalized == null ? null : normalized.toLowerCase();
     }
 
     private AppointmentResponse toResponse(Appointment a) {
