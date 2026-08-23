@@ -78,20 +78,23 @@ public class AdminController {
      *  - recentContacts  : list of attempts in the window (date, channel, outcome)
      */
     @GetMapping("/residents/{userId}/contact-limit")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> residentContactLimit(@PathVariable Long userId) {
         User resident = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Resident not found: " + userId));
 
         ContactLimitResult result = contactLimitService.getResidentContactSummary(resident);
 
-        // Build a clean JSON-friendly response map
-        var contacts = result.getRecentContacts().stream().map(ca -> Map.of(
-                "id", ca.getId(),
-                "appointmentId", ca.getAppointment().getId(),
-                "channel", ca.getChannel(),
-                "attemptedAt", ca.getAttemptedAt().toString(),
-                "outcome", ca.getOutcome()
-        )).toList();
+        // Build a clean JSON-friendly response map safely
+        var contacts = result.getRecentContacts().stream().map(ca -> {
+            java.util.Map<String, Object> c = new java.util.HashMap<>();
+            c.put("id", ca.getId());
+            c.put("appointmentId", ca.getAppointment() != null ? ca.getAppointment().getId() : null);
+            c.put("channel", ca.getChannel());
+            c.put("attemptedAt", ca.getAttemptedAt() != null ? ca.getAttemptedAt().toString() : null);
+            c.put("outcome", ca.getOutcome());
+            return c;
+        }).toList();
 
         java.util.Map<String, Object> response = new java.util.HashMap<>();
         response.put("residentId", result.getResidentId());
