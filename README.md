@@ -26,7 +26,7 @@ A production-ready Spring Boot application designed to manage automated user rem
 
 ## ⚙️ Prerequisites
 
-- **Java**: JDK 17 or higher
+- **Java**: Java 21
 - **Database**: MySQL Server (running locally on port 3306)
 - **SMTP Server**: Brevo (configured with key in properties)
 
