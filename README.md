@@ -28,9 +28,7 @@ A production-ready Spring Boot application designed to manage automated user rem
 
 - **Java**: Java 21
 - **Database**: MySQL Server (running locally on port 3306)
-- **SMTP Server**: Brevo (configured with key in properties)
-
----
+  SMTP Server: Brevo SMTP (credentials required for real email delivery)
 
 ## 🚀 Setup & Installation
 
